@@ -1,14 +1,206 @@
 {
-  "description": "Input features for the anomaly classifier (edit to match your trained model).",
+  "description": "Synced from sklearn feature_names_in_",
   "features": [
-    { "name": "revenue_growth_yoy", "type": "float", "description": "Year-over-year revenue growth (%)" },
-    { "name": "net_margin", "type": "float", "description": "Net profit margin (%)" },
-    { "name": "debt_to_equity", "type": "float", "description": "Debt-to-equity ratio" },
-    { "name": "current_ratio", "type": "float", "description": "Current ratio" },
-    { "name": "cash_flow_volatility", "type": "float", "description": "Normalized cash-flow volatility" },
-    { "name": "market_cap_change_30d", "type": "float", "description": "30-day market cap change (%)" },
-    { "name": "filing_delay_days", "type": "float", "description": "Days between period end and SEC filing" },
-    { "name": "insider_sell_ratio", "type": "float", "description": "Insider sell vs buy activity ratio" }
+    {
+      "name": "open",
+      "type": "float"
+    },
+    {
+      "name": "high",
+      "type": "float"
+    },
+    {
+      "name": "low",
+      "type": "float"
+    },
+    {
+      "name": "close",
+      "type": "float"
+    },
+    {
+      "name": "volume",
+      "type": "float"
+    },
+    {
+      "name": "daily_return",
+      "type": "float"
+    },
+    {
+      "name": "log_return",
+      "type": "float"
+    },
+    {
+      "name": "price_change_7d",
+      "type": "float"
+    },
+    {
+      "name": "price_change_30d",
+      "type": "float"
+    },
+    {
+      "name": "price_change_90d",
+      "type": "float"
+    },
+    {
+      "name": "volatility_7d",
+      "type": "float"
+    },
+    {
+      "name": "volatility_30d",
+      "type": "float"
+    },
+    {
+      "name": "volatility_90d",
+      "type": "float"
+    },
+    {
+      "name": "avg_volume_30d",
+      "type": "float"
+    },
+    {
+      "name": "std_volume_30d",
+      "type": "float"
+    },
+    {
+      "name": "volume_change_30d",
+      "type": "float"
+    },
+    {
+      "name": "volume_zscore_30d",
+      "type": "float"
+    },
+    {
+      "name": "avg_return_30d",
+      "type": "float"
+    },
+    {
+      "name": "std_return_30d",
+      "type": "float"
+    },
+    {
+      "name": "return_zscore_30d",
+      "type": "float"
+    },
+    {
+      "name": "daily_range",
+      "type": "float"
+    },
+    {
+      "name": "open_gap",
+      "type": "float"
+    },
+    {
+      "name": "filing_count",
+      "type": "float"
+    },
+    {
+      "name": "form_10k_count",
+      "type": "float"
+    },
+    {
+      "name": "form_10q_count",
+      "type": "float"
+    },
+    {
+      "name": "form_8k_count",
+      "type": "float"
+    },
+    {
+      "name": "filing_count_30d",
+      "type": "float"
+    },
+    {
+      "name": "filing_count_90d",
+      "type": "float"
+    },
+    {
+      "name": "form_8k_count_30d",
+      "type": "float"
+    },
+    {
+      "name": "form_10q_count_180d",
+      "type": "float"
+    },
+    {
+      "name": "form_10k_count_365d",
+      "type": "float"
+    },
+    {
+      "name": "days_since_last_filing",
+      "type": "float"
+    },
+    {
+      "name": "days_since_last_8k",
+      "type": "float"
+    },
+    {
+      "name": "assets",
+      "type": "float"
+    },
+    {
+      "name": "cash_and_equivalents",
+      "type": "float"
+    },
+    {
+      "name": "net_income",
+      "type": "float"
+    },
+    {
+      "name": "operating_income",
+      "type": "float"
+    },
+    {
+      "name": "rd_expense",
+      "type": "float"
+    },
+    {
+      "name": "revenue",
+      "type": "float"
+    },
+    {
+      "name": "stockholders_equity",
+      "type": "float"
+    },
+    {
+      "name": "operating_margin",
+      "type": "float"
+    },
+    {
+      "name": "net_margin",
+      "type": "float"
+    },
+    {
+      "name": "cash_to_assets",
+      "type": "float"
+    },
+    {
+      "name": "equity_to_assets",
+      "type": "float"
+    },
+    {
+      "name": "rd_to_revenue",
+      "type": "float"
+    },
+    {
+      "name": "revenue_growth_qoq",
+      "type": "float"
+    },
+    {
+      "name": "revenue_growth_yoy",
+      "type": "float"
+    },
+    {
+      "name": "net_income_growth_qoq",
+      "type": "float"
+    },
+    {
+      "name": "net_income_growth_yoy",
+      "type": "float"
+    },
+    {
+      "name": "assets_growth_qoq",
+      "type": "float"
+    }
   ],
   "label_map": {
     "0": "normal",

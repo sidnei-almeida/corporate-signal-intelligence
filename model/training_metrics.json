@@ -1,0 +1,16 @@
+{
+  "model_file": "isolation_forest_anomaly_pipeline.joblib",
+  "estimator": "Pipeline",
+  "note": "Fill metrics from your training notebook (classification report, ROC-AUC, etc.).",
+  "metrics": {
+    "accuracy": null,
+    "precision_anomaly": null,
+    "recall_anomaly": null,
+    "f1_anomaly": null,
+    "roc_auc": null
+  },
+  "train_test_split": {
+    "train": null,
+    "test": null
+  }
+}
