@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str | None = None
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     DATABASE_URL: str | None = None
+    DATA_SOURCE: str = "auto"  # auto | csv | database
+    BRIEFING_PROMPT_VERSION: str = "v2"
     SEC_USER_AGENT: str | None = None
     STOOQ_API_KEY: str | None = None
     ALPHA_VANTAGE_API_KEY: str | None = None

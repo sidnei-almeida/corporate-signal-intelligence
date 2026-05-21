@@ -9,6 +9,8 @@ from typing import Any
 import pandas as pd
 
 from app.core.config import get_settings
+from app.core.data_source import using_database
+from app.repositories import db_repository
 from app.utils.formatting import dataframe_to_records, normalize_date, safe_bool, safe_float
 from app.utils.ticker import normalize_ticker
 
@@ -77,6 +79,8 @@ def _cached_anomaly_results() -> pd.DataFrame:
 
 def load_anomaly_results() -> pd.DataFrame:
     """Return a defensive copy of anomaly detection results."""
+    if using_database():
+        return db_repository._load_anomaly_dataframe().copy()
     return _cached_anomaly_results().copy()
 
 
@@ -91,6 +95,8 @@ def _cached_company_universe() -> frozenset[str]:
 
 def ticker_exists(ticker: str) -> bool:
     """Return True when the ticker exists in anomaly results."""
+    if using_database():
+        return db_repository.ticker_exists(ticker)
     return normalize_ticker(ticker) in _cached_company_universe()
 
 
@@ -124,6 +130,8 @@ def _load_top_anomalies_file() -> pd.DataFrame:
 
 def get_available_companies() -> list[str]:
     """Return sorted list of tickers present in anomaly results."""
+    if using_database():
+        return db_repository.get_available_companies()
     return sorted(_cached_company_universe())
 
 
@@ -137,6 +145,8 @@ def _filter_ticker(df: pd.DataFrame, ticker: str) -> pd.DataFrame:
 
 def get_company_anomalies(ticker: str) -> pd.DataFrame:
     """Return anomaly rows for a specific ticker."""
+    if using_database():
+        return db_repository.get_company_anomalies(ticker)
     df = load_anomaly_results()
     filtered = _filter_ticker(df, ticker)
     if "is_anomaly" in filtered.columns:
@@ -146,6 +156,8 @@ def get_company_anomalies(ticker: str) -> pd.DataFrame:
 
 def get_top_anomalies(limit: int = 20) -> pd.DataFrame:
     """Return top anomalies from file or computed from full results."""
+    if using_database():
+        return db_repository.get_top_anomalies(limit=limit)
     top_df = _load_top_anomalies_file()
     if not top_df.empty:
         working = top_df.copy()
@@ -166,6 +178,8 @@ def get_top_anomalies(limit: int = 20) -> pd.DataFrame:
 
 def get_anomaly_summary() -> list[dict[str, Any]]:
     """Return grouped anomaly summary by ticker."""
+    if using_database():
+        return db_repository.get_anomaly_summary()
     df = load_anomaly_results()
     if df.empty or "ticker" not in df.columns:
         return []
@@ -195,6 +209,8 @@ def get_anomaly_summary() -> list[dict[str, Any]]:
 
 def get_company_profile(ticker: str) -> dict[str, Any] | None:
     """Build a company profile from anomaly results."""
+    if using_database():
+        return db_repository.get_company_profile(ticker)
     normalized = normalize_ticker(ticker)
     if not ticker_exists(normalized):
         return None
@@ -238,6 +254,8 @@ def get_company_profile(ticker: str) -> dict[str, Any] | None:
 
 def find_anomaly_record(ticker: str, date_value: str) -> dict[str, Any] | None:
     """Find a specific anomaly record by ticker and date."""
+    if using_database():
+        return db_repository.find_anomaly_record(ticker, date_value)
     normalized = normalize_ticker(ticker)
     df = load_anomaly_results()
     company_df = _filter_ticker(df, normalized)
@@ -262,6 +280,14 @@ def query_anomalies(
     ascending: bool = True,
 ) -> list[dict[str, Any]]:
     """Query anomaly records with optional filters."""
+    if using_database():
+        return db_repository.query_anomalies(
+            ticker=ticker,
+            limit=limit,
+            only_anomalies=only_anomalies,
+            sort_by=sort_by,
+            ascending=ascending,
+        )
     df = load_anomaly_results()
     if df.empty:
         return []
@@ -286,6 +312,8 @@ def query_anomalies(
 
 def get_anomaly_type_counts() -> list[dict[str, int | str]]:
     """Return counts of individual anomaly types."""
+    if using_database():
+        return db_repository.get_anomaly_type_counts()
     df = load_anomaly_results()
     if df.empty or "anomaly_type" not in df.columns:
         return []

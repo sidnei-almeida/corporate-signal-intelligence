@@ -45,6 +45,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 The first API version reads from local CSV files in `data/` and loads the trained model from `models/`. The API still starts when `DATABASE_URL` is missing.
 
+For PostgreSQL/Neon setup, migrations, and CSV loading, see [README_DATABASE.md](README_DATABASE.md).
+
 ## Available endpoints
 
 ### System

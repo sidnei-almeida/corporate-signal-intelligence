@@ -20,6 +20,8 @@ services:
         value: models/isolation_forest_anomaly_pipeline.joblib
       - key: GROQ_MODEL
         value: llama-3.3-70b-versatile
+      - key: DATA_SOURCE
+        value: auto
       # Set in Render Dashboard (Secrets):
       # - GROQ_API_KEY
       # - DATABASE_URL
