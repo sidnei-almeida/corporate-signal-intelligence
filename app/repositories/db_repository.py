@@ -158,9 +158,9 @@ def find_anomaly_record(ticker: str, date_value: str) -> dict[str, Any] | None:
                 AnomalyResult.date == target.date(),
             )
         ).first()
-    if row is None:
-        return None
-    data = {col: getattr(row, col) for col in _ANOMALY_COLUMNS}
+        if row is None:
+            return None
+        data = {col: getattr(row, col) for col in _ANOMALY_COLUMNS}
     data["date"] = normalize_date(data.get("date"))
     return data
 

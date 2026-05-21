@@ -14,6 +14,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.core.config import get_settings
+from app.core.database import _normalize_database_url
 from app.models.database_models import Base
 
 config = context.config
@@ -25,7 +26,7 @@ target_metadata = Base.metadata
 
 settings = get_settings()
 if settings.DATABASE_URL:
-    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+    config.set_main_option("sqlalchemy.url", _normalize_database_url(settings.DATABASE_URL))
 
 
 def run_migrations_offline() -> None:
