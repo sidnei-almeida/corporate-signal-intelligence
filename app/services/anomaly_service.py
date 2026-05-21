@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.services import data_service
+from app.utils.ticker import normalize_ticker
 
 
 def list_anomalies(
@@ -50,4 +51,8 @@ def get_company_anomalies(ticker: str) -> dict[str, Any]:
     from app.utils.formatting import dataframe_to_records
 
     records = dataframe_to_records(df)
-    return {"ticker": ticker.upper(), "count": len(records), "records": records}
+    return {
+        "ticker": normalize_ticker(ticker),
+        "count": len(records),
+        "records": records,
+    }

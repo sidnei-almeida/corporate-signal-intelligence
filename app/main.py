@@ -7,7 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import anomalies, briefings, companies, health, model
 from app.core.config import get_settings
+from app.core.logging_config import configure_logging
+from app.middleware.request_logging import RequestLoggingMiddleware
 from app.services import model_service
+
+configure_logging()
 
 API_VERSION = "1.0.0"
 
@@ -49,6 +53,7 @@ def create_app() -> FastAPI:
         cors_kwargs["allow_credentials"] = True
 
     application.add_middleware(CORSMiddleware, **cors_kwargs)
+    application.add_middleware(RequestLoggingMiddleware)
 
     application.include_router(health.router)
     application.include_router(companies.router)

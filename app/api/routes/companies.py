@@ -1,9 +1,14 @@
 """Company endpoints."""
 
-from fastapi import APIRouter, HTTPException
+import logging
+
+from fastapi import APIRouter, HTTPException, Path
 
 from app.schemas.company_schema import CompanyListItem, CompanyProfile
 from app.services import data_service
+from app.utils.ticker import is_plausible_ticker, normalize_ticker
+
+logger = logging.getLogger("app.routes.companies")
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -11,6 +16,7 @@ router = APIRouter(prefix="/companies", tags=["companies"])
 @router.get("", response_model=list[CompanyListItem])
 def list_companies() -> list[CompanyListItem]:
     """Return available tickers and basic metadata."""
+    logger.info("list_companies")
     tickers = data_service.get_available_companies()
     items: list[CompanyListItem] = []
     for ticker in tickers:
@@ -32,9 +38,17 @@ def list_companies() -> list[CompanyListItem]:
 
 
 @router.get("/{ticker}", response_model=CompanyProfile)
-def get_company(ticker: str) -> CompanyProfile:
+def get_company(
+    ticker: str = Path(..., min_length=1, max_length=12, description="Stock ticker symbol"),
+) -> CompanyProfile:
     """Return profile details for a specific ticker."""
-    profile = data_service.get_company_profile(ticker)
+    if not is_plausible_ticker(ticker):
+        raise HTTPException(status_code=404, detail=f"Invalid ticker '{ticker}'.")
+
+    normalized = normalize_ticker(ticker)
+    logger.info("get_company ticker=%s", normalized)
+
+    profile = data_service.get_company_profile(normalized)
     if profile is None:
-        raise HTTPException(status_code=404, detail=f"Ticker '{ticker.upper()}' not found.")
+        raise HTTPException(status_code=404, detail=f"Ticker '{normalized}' not found.")
     return CompanyProfile(**profile)
