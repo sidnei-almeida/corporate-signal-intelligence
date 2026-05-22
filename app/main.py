@@ -1,5 +1,6 @@
 """FastAPI application entrypoint."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -21,14 +22,19 @@ API_VERSION = "1.0.0"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    """Warm lightweight API caches at startup; do not load joblib or wide CSVs."""
+    """Warm caches in background so /health responds immediately (Render cold start)."""
     clear_data_source_cache()
-    try:
-        data_service.warmup_api_cache()
-        logger.info("Startup cache warmup completed.")
-    except Exception as exc:
-        logger.warning("Startup cache warmup skipped: %s", exc)
+
+    async def _warmup() -> None:
+        try:
+            await asyncio.to_thread(data_service.warmup_api_cache)
+            logger.info("Startup cache warmup completed.")
+        except Exception as exc:
+            logger.warning("Startup cache warmup skipped: %s", exc)
+
+    warmup_task = asyncio.create_task(_warmup())
     yield
+    warmup_task.cancel()
 
 
 def create_app() -> FastAPI:
@@ -44,14 +50,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # RequestLogging first, CORS last → CORS runs outermost (handles OPTIONS first).
+    application.add_middleware(RequestLoggingMiddleware)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
+        allow_origin_regex=settings.cors_origin_regex,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    application.add_middleware(RequestLoggingMiddleware)
+    logger.info("CORS allow_origins=%s", settings.cors_origins)
 
     application.include_router(health.router)
     application.include_router(companies.router)

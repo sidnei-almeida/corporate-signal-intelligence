@@ -57,6 +57,11 @@ class Settings(BaseSettings):
         return unique
 
     @property
+    def cors_origin_regex(self) -> str | None:
+        """Match Next.js dev URLs (localhost, 127.0.0.1, LAN) without hardcoding IPs in git."""
+        return r"https?://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?"
+
+    @property
     def data_path(self) -> Path:
         """Absolute path to the data directory."""
         path = Path(self.DATA_DIR)
