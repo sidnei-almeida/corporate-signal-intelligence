@@ -1,5 +1,6 @@
 """FastAPI application entrypoint."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,20 +8,26 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import anomalies, briefings, companies, health, model
 from app.core.config import get_settings
+from app.core.data_source import clear_data_source_cache
 from app.core.logging_config import configure_logging
 from app.middleware.request_logging import RequestLoggingMiddleware
-from app.services import model_service
+from app.services import data_service
 
 configure_logging()
+logger = logging.getLogger(__name__)
 
 API_VERSION = "1.0.0"
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    """Warm up optional dependencies on startup."""
-    if model_service.model_exists():
-        model_service.load_model()
+    """Warm lightweight API caches at startup; do not load joblib or wide CSVs."""
+    clear_data_source_cache()
+    try:
+        data_service.warmup_api_cache()
+        logger.info("Startup cache warmup completed.")
+    except Exception as exc:
+        logger.warning("Startup cache warmup skipped: %s", exc)
     yield
 
 

@@ -79,7 +79,18 @@ For PostgreSQL/Neon setup, migrations, and CSV loading, see [README_DATABASE.md]
 2. Create a new **Web Service** on Render using the repo.
 3. Use:
    - **Build command:** `pip install -r requirements.txt`
-   - **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1`
+
+## Memory optimization (Render)
+
+The API is tuned for Render free-tier memory limits:
+
+- **Only** `anomaly_detection_results.csv` (minimal columns) or PostgreSQL `anomaly_results` is loaded at startup.
+- Large files (`model_ready_dataset.csv`, `market_features.csv`, etc.) are **not** loaded unless you call internal loaders explicitly.
+- Startup builds lightweight caches: company list, anomaly summary, top anomalies, type counts, company profiles.
+- `/health` and `/model/info` do not load the joblib model into RAM (`/model/predict` loads it on demand).
+- Use **one Uvicorn worker** on Render (`--workers 1` in `render.yaml`).
+- Prefer `DATA_SOURCE=database` in production so the app queries Neon with SQL instead of holding wide CSVs in memory.
 4. Add secrets in the Render dashboard:
    - `GROQ_API_KEY`
    - `DATABASE_URL` (optional for MVP)

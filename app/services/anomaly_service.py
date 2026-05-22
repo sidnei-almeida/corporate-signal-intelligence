@@ -27,30 +27,24 @@ def list_anomalies(
 
 
 def get_top_anomalies(limit: int = 20) -> dict[str, Any]:
-    """Return top anomalous records."""
-    from app.utils.formatting import dataframe_to_records
-
-    df = data_service.get_top_anomalies(limit=limit)
-    records = dataframe_to_records(df)
+    """Return top anomalous records from startup cache."""
+    records = data_service.get_top_anomalies_cached(limit=limit)
     return {"count": len(records), "records": records}
 
 
 def get_summary() -> list[dict]:
-    """Return anomaly summary grouped by ticker."""
-    return data_service.get_anomaly_summary()
+    """Return anomaly summary grouped by ticker (cached)."""
+    return data_service.get_anomaly_summary_cached()
 
 
 def get_type_counts() -> list[dict]:
-    """Return anomaly type frequency counts."""
-    return data_service.get_anomaly_type_counts()
+    """Return anomaly type frequency counts (cached)."""
+    return data_service.get_anomaly_types_cached()
 
 
 def get_company_anomalies(ticker: str) -> dict[str, Any]:
     """Return anomalies for one ticker."""
-    df = data_service.get_company_anomalies(ticker)
-    from app.utils.formatting import dataframe_to_records
-
-    records = dataframe_to_records(df)
+    records = data_service.get_company_anomalies(ticker)
     return {
         "ticker": normalize_ticker(ticker),
         "count": len(records),

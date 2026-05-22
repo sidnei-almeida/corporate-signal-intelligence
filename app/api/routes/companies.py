@@ -8,33 +8,15 @@ from app.schemas.company_schema import CompanyListItem, CompanyProfile
 from app.services import data_service
 from app.utils.ticker import is_plausible_ticker, normalize_ticker
 
-logger = logging.getLogger("app.routes.companies")
-
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/companies", tags=["companies"])
 
 
 @router.get("", response_model=list[CompanyListItem])
 def list_companies() -> list[CompanyListItem]:
-    """Return available tickers and basic metadata."""
+    """Return available tickers and basic metadata (cached)."""
     logger.info("list_companies")
-    tickers = data_service.get_available_companies()
-    items: list[CompanyListItem] = []
-    for ticker in tickers:
-        profile = data_service.get_company_profile(ticker)
-        if profile is None:
-            items.append(CompanyListItem(ticker=ticker))
-            continue
-        items.append(
-            CompanyListItem(
-                ticker=profile["ticker"],
-                row_count=profile["row_count"],
-                first_date=profile["first_date"],
-                last_date=profile["last_date"],
-                anomaly_count=profile["anomaly_count"],
-                anomaly_rate=profile["anomaly_rate"],
-            )
-        )
-    return items
+    return [CompanyListItem(**item) for item in data_service.get_companies_list_cached()]
 
 
 @router.get("/{ticker}", response_model=CompanyProfile)

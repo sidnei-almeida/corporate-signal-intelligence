@@ -14,29 +14,26 @@ def model_exists() -> bool:
 
 
 def load_model() -> Any | None:
-    """Return the cached model object."""
+    """Load model into memory (POST /model/predict only)."""
     model, _ = model_loader.load_model_artifact()
     return model
 
 
 def get_model_info() -> ModelInfoResponse:
-    """Return metadata about the trained model artifact."""
-    model, path = model_loader.load_model_artifact()
-    feature_names = model_loader.get_feature_names(model) if model is not None else []
-    exists = path.is_file()
-    status = "loaded" if model is not None else ("missing" if not exists else "failed_to_load")
+    """Return metadata without keeping the joblib loaded in memory."""
+    meta = model_loader.get_model_metadata_lightweight()
     return ModelInfoResponse(
-        model_path=str(path),
-        model_exists=exists,
-        model_type=type(model).__name__ if model is not None else None,
-        expected_feature_count=len(feature_names) if feature_names else None,
-        feature_names=feature_names,
-        artifact_status=status,
+        model_path=str(meta["path"]),
+        model_exists=meta["exists"],
+        model_type=meta["model_type"],
+        expected_feature_count=len(meta["feature_names"]) if meta["feature_names"] else None,
+        feature_names=meta["feature_names"],
+        artifact_status=meta["artifact_status"],
     )
 
 
 def predict_single(features: dict[str, float | int | None]) -> ModelPredictionResponse:
-    """Run inference for a single feature payload."""
+    """Run inference for a single feature payload (loads model on demand)."""
     model, path = model_loader.load_model_artifact()
     if model is None:
         raise RuntimeError("Model is not available for inference.")
