@@ -45,19 +45,16 @@ def create_app() -> FastAPI:
     )
 
     cors_kwargs: dict = {
+        "allow_origins": settings.cors_origins,
+        "allow_credentials": True,
         "allow_methods": ["*"],
         "allow_headers": ["*"],
     }
     if settings.is_development:
-        cors_kwargs["allow_origins"] = ["*"]
-        cors_kwargs["allow_credentials"] = False
-    else:
-        cors_kwargs["allow_origins"] = [
-            "http://localhost:3000",
-            "http://localhost:5173",
-            "https://corporate-signal-intelligence.onrender.com",
-        ]
-        cors_kwargs["allow_credentials"] = True
+        # Next.js "Network" URL uses LAN IP as Origin (e.g. 192.168.x.x:3000)
+        cors_kwargs["allow_origin_regex"] = (
+            r"http://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3})(:\d+)?"
+        )
 
     application.add_middleware(CORSMiddleware, **cors_kwargs)
     application.add_middleware(RequestLoggingMiddleware)

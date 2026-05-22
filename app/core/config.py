@@ -32,6 +32,31 @@ class Settings(BaseSettings):
     STOOQ_API_KEY: str | None = None
     ALPHA_VANTAGE_API_KEY: str | None = None
     PORT: int = 8000
+    # Comma-separated extra origins, e.g. http://192.168.1.59:3000
+    CORS_ORIGINS: str | None = None
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Allowed browser origins for CORS (dashboard, local dev)."""
+        defaults = [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
+        if self.CORS_ORIGINS:
+            extras = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+            defaults.extend(extras)
+        if not self.is_development:
+            defaults.append("https://corporate-signal-intelligence.onrender.com")
+        # Preserve order, drop duplicates
+        seen: set[str] = set()
+        unique: list[str] = []
+        for origin in defaults:
+            if origin not in seen:
+                seen.add(origin)
+                unique.append(origin)
+        return unique
 
     @property
     def data_path(self) -> Path:
