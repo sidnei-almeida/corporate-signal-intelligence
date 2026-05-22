@@ -111,3 +111,4 @@ temp/
 tmp/
 .cursor/
 .render/
+.env.example
