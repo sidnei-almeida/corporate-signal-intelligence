@@ -6,15 +6,15 @@
 
 <p align="center">
   <strong>SEC filings · market features · Isolation Forest · FastAPI · Groq · Neon PostgreSQL</strong><br />
-  <em>De notebooks e dor de cabeça com API de mercado até uma API em produção no Render.</em>
+  <em>From notebooks and market API headaches to a production API on Render.</em>
 </p>
 
 <p align="center">
-  <a href="https://github.com/sidnei-almeida/corporate-signal-intelligence"><strong>Ver no GitHub</strong></a>
+  <a href="https://github.com/sidnei-almeida/corporate-signal-intelligence"><strong>View on GitHub</strong></a>
   &nbsp;·&nbsp;
-  <a href="README_API.md">Documentação da API</a>
+  <a href="README_API.md">API documentation</a>
   &nbsp;·&nbsp;
-  <a href="README_DATABASE.md">Banco de dados (Neon)</a>
+  <a href="README_DATABASE.md">Database (Neon)</a>
 </p>
 
 <p align="center">
@@ -28,27 +28,27 @@
 
 ---
 
-## O que é isso
+## What this is
 
-Montei este projeto para juntar **dados de mercado**, **filings da SEC** e **fundamentos financeiros** num único fluxo: limpar, gerar features, detectar dias atípicos com Isolation Forest e expor tudo numa API — com briefings executivos via Groq quando faz sentido.
+I built this project to combine **market data**, **SEC filings**, and **financial fundamentals** in a single pipeline: clean, engineer features, flag atypical days with Isolation Forest, and expose everything through an API — with Groq-powered executive briefings when it makes sense.
 
-Não é robô de trade nem parecer jurídico. A ideia é **priorizar o que merece uma segunda olhada** antes de alguém abrir um 10-K ou montar um memo.
+This is not a trading bot or legal memo generator. The goal is to **prioritize what deserves a second look** before someone opens a 10-K or writes a memo.
 
-> **API em produção:** `uvicorn app.main:app` — detalhes em [README_API.md](README_API.md).
+> **Production API:** `uvicorn app.main:app` — see [README_API.md](README_API.md) for details.
 
 ---
 
-## Como o projeto foi construído
+## How the project was built
 
-Esta seção é o resumo honesto do caminho — incluindo o que quebrou.
+This section is an honest summary of the journey — including what broke along the way.
 
-### Pipeline final
+### Final pipeline
 
 ```mermaid
 flowchart TB
   STOOQ[Stooq — market data]
   SEC[SEC EDGAR — filings & XBRL]
-  CLEAN[Datasets limpos]
+  CLEAN[Clean datasets]
   FEAT[Feature engineering]
   READY[model_ready_dataset]
   IF[Isolation Forest]
@@ -70,218 +70,218 @@ flowchart TB
 
 ---
 
-### 1. Coleta de mercado — Alpha Vantage não segurou
+### 1. Market data — Alpha Vantage did not hold up
 
-Comecei com **Alpha Vantage** porque parecia simples: `open`, `high`, `low`, `close`, `volume`, `adjusted_close`, etc.
+I started with **Alpha Vantage** because it looked simple: `open`, `high`, `low`, `close`, `volume`, `adjusted_close`, etc.
 
-Na prática:
+In practice:
 
-- `TIME_SERIES_DAILY_ADJUSTED` → erro de endpoint **premium**
-- `TIME_SERIES_DAILY` com `outputsize=compact` → só ~**100 linhas** por ticker
-- `outputsize=full` → **503**, quota estourando rápido
+- `TIME_SERIES_DAILY_ADJUSTED` → **premium** endpoint error
+- `TIME_SERIES_DAILY` with `outputsize=compact` → only ~**100 rows** per ticker
+- `outputsize=full` → **503**, quota burning fast
 
-**Conclusão:** descartei como fonte principal. No máximo complemento.
+**Conclusion:** dropped as the primary source. At best a complement.
 
 ---
 
-### 2. Coleta de mercado — Stooq virou a base
+### 2. Market data — Stooq became the base
 
-Migrei para **Stooq** (CSV histórico). No começo a Stooq nem devolvia o arquivo — pedia API key via captcha. Depois da key, a coleta fluiu.
+I migrated to **Stooq** (historical CSV). At first Stooq would not return the file — it asked for an API key via captcha. After getting the key, collection worked well.
 
 **10 tickers:** AAPL, MSFT, NVDA, GOOGL, AMZN, META, TSLA, AMD, INTC, ORCL.
 
-| Métrica | Valor |
-|---------|--------|
-| Linhas históricas (aprox.) | ~82 mil |
-| Granularidade | Diária |
-| Cobertura | Décadas em alguns casos (ex.: INTC desde 1972, AAPL desde 1984) |
+| Metric | Value |
+|--------|--------|
+| Historical rows (approx.) | ~82k |
+| Granularity | Daily |
+| Coverage | Decades for some names (e.g. INTC since 1972, AAPL since 1984) |
 
-**Stooq = fonte principal de market data.**
+**Stooq = primary market data source.**
 
 ---
 
-### 3. Coleta corporativa — SEC EDGAR
+### 3. Corporate data — SEC EDGAR
 
-A parte “corporate intelligence” veio da **SEC**: metadata, ticker→CIK, submissions, 10-K / 10-Q / 8-K, company facts (XBRL).
+The “corporate intelligence” layer came from the **SEC**: metadata, ticker→CIK, submissions, 10-K / 10-Q / 8-K, company facts (XBRL).
 
-Primeiro teste com AAPL funcionou (`CIK 0000320193`). Conceitos como `Revenues`, `NetIncomeLoss`, `Assets`, `CashAndCashEquivalentsAtCarryingValue` aparecem com nomes diferentes entre empresas e períodos.
+First test with AAPL worked (`CIK 0000320193`). Concepts like `Revenues`, `NetIncomeLoss`, `Assets`, `CashAndCashEquivalentsAtCarryingValue` show up under different names across companies and periods.
 
-**Pegadinha que parecia bug:** `start_date` como `NaT` em vários facts. Não era erro — é o modelo da SEC:
+**Gotcha that looked like a bug:** `start_date` as `NaT` on many facts. Not an error — that is how the SEC models it:
 
-| Tipo | Datas |
+| Type | Dates |
 |------|--------|
-| **Duration** (receita, lucro) | `start_date` + `end_date` |
-| **Instant** (ativos, caixa) | em geral só `end_date` |
+| **Duration** (revenue, income) | `start_date` + `end_date` |
+| **Instant** (assets, cash) | usually `end_date` only |
 
-Passei a usar **`reference_date` / `end_date`** como eixo temporal dos fundamentals.
+I standardized on **`reference_date` / `end_date`** as the time axis for fundamentals.
 
 ---
 
-### 4. Limpeza — `data_analysis_cleansing.ipynb`
+### 4. Cleansing — `data_analysis_cleansing.ipynb`
 
-Objetivo: validar shape, duplicatas, nulos, padronizar tickers e datas.
+Goal: validate shape, duplicates, nulls, and standardize tickers and dates.
 
-| Dataset limpo | Resultado |
-|---------------|-----------|
-| `clean_market_df` | Sem nulos/duplicatas relevantes; filtrado de **2015+** |
+| Clean dataset | Result |
+|---------------|--------|
+| `clean_market_df` | No relevant nulls/duplicates; filtered from **2015+** |
 | `clean_companies_df` | OK |
 | `clean_sec_filings_df` | OK |
-| `clean_sec_facts_df` | `start_date` nulo onde esperado (instant concepts) |
+| `clean_sec_facts_df` | null `start_date` where expected (instant concepts) |
 
 ---
 
-### 5. Feature engineering — três camadas
+### 5. Feature engineering — three layers
 
-No `feature_engineering.ipynb` separei em três blocos.
+In `feature_engineering.ipynb` I split work into three blocks.
 
-**Market features** — retornos, volatilidades, z-scores de volume/retorno, gaps, etc.  
-→ **2.773 linhas** por ticker, período alinhado (2015–2026).
+**Market features** — returns, volatilities, volume/return z-scores, gaps, etc.  
+→ **2,773 rows** per ticker, aligned period (2015–2026).
 
-**Filing features** — contagens de 10-K/10-Q/8-K, janelas 30d/90d/180d/365d, dias desde último filing.  
-→ SEC virando **sinal diário**, não só PDF no EDGAR.
+**Filing features** — 10-K/10-Q/8-K counts, 30d/90d/180d/365d windows, days since last filing.  
+→ SEC turned into **daily signals**, not just PDFs on EDGAR.
 
-**Financial features** — a parte mais chata. XBRL em formato longo, conceitos que mudam de nome (`RevenueFromContractWithCustomerExcludingAssessedTax` vs `Revenues`). Consolidei em `revenue`, margens, crescimentos QoQ/YoY, etc.
+**Financial features** — the hardest part. XBRL in long format, concepts that rename (`RevenueFromContractWithCustomerExcludingAssessedTax` vs `Revenues`). Consolidated into `revenue`, margins, QoQ/YoY growth, etc.
 
-Depois do primeiro pivot ficou **esparsão brutal** (>50% missing em várias colunas). A v2:
+After the first pivot, **brutal sparsity** (>50% missing on several columns). v2 fix:
 
-- mapear conceitos **antes** do pivot  
-- forward fill por ticker  
-- consolidar `ticker + reference_date`  
-- dropar colunas ainda ruins (`liabilities*`, ~40% missing)
+- map concepts **before** pivot  
+- forward fill by ticker  
+- consolidate on `ticker + reference_date`  
+- drop still-bad columns (`liabilities*`, ~40% missing)
 
-Saída: `financial_features_selected.csv`.
+Output: `financial_features_selected.csv`.
 
 ---
 
-### 6. `model_ready_df` — merge e missing values
+### 6. `model_ready_df` — merge and missing values
 
-União em duas etapas:
+Two-step join:
 
-1. **Diário:** `market_features` + `filing_features` em `ticker + date`  
-2. **Financeiro trimestral:** `merge_asof` — para cada dia de mercado, o último fundamental disponível até aquela data
+1. **Daily:** `market_features` + `filing_features` on `ticker + date`  
+2. **Quarterly financials:** `merge_asof` — for each market day, the latest fundamental available up to that date
 
 | | |
 |---|---|
-| Linhas | 27.730 |
-| Colunas | 58 |
-| Empresas | 10 |
+| Rows | 27,730 |
+| Columns | 58 |
+| Companies | 10 |
 
-Testei `dropna()` completo: perderia **15,6%** das linhas e **100% da AMZN**. Descartado.
+I tested full `dropna()`: would lose **15.6%** of rows and **100% of AMZN**. Rejected.
 
-**Decisão:** `SimpleImputer(median)` dentro do pipeline de modelagem — mantém todas as empresas.
+**Decision:** `SimpleImputer(median)` inside the modeling pipeline — keeps all companies.
 
 ---
 
-### 7. Modelagem — Isolation Forest
+### 7. Modeling — Isolation Forest
 
-Sem labels reais de “fraude” ou “crise”, faz mais sentido **não supervisionado**.
+Without real “fraud” or “crisis” labels, **unsupervised** made more sense.
 
 ```text
 SimpleImputer(median) → RobustScaler() → IsolationForest(contamination=0.03)
 ```
 
-Salvo em `models/isolation_forest_anomaly_pipeline.joblib`.
+Saved as `models/isolation_forest_anomaly_pipeline.joblib`.
 
-Taxa global de anomalia: **3,00%** (bate com `contamination=0.03`).
+Global anomaly rate: **3.00%** (matches `contamination=0.03`).
 
-| Ticker | Taxa de anomalia |
-|--------|------------------|
-| TSLA | 7,46% |
-| NVDA | 6,60% |
-| META | 4,36% |
-| GOOGL | 3,53% |
-| AAPL | 0,79% |
+| Ticker | Anomaly rate |
+|--------|----------------|
+| TSLA | 7.46% |
+| NVDA | 6.60% |
+| META | 4.36% |
+| GOOGL | 3.53% |
+| AAPL | 0.79% |
 
-TSLA e NVDA no topo faz sentido — mais volatilidade e eventos extremos no recorte.
-
----
-
-### 8. Tipos de anomalia (rule-based)
-
-Depois do score do modelo, classifiquei com regras: `price_spike`, `volume_spike`, `high_volatility`, `filing_activity`, `revenue_shift`, `negative_margin`, `combined_signal`, etc.
-
-O primeiro gráfico com tipos **concatenados** virou sopa ilegível (`price_spike, volume_spike, filing_activity, ...`). Ajuste: **explodir labels individuais** — leitura muito melhor.
+TSLA and NVDA on top makes sense — more volatility and extreme events in the window.
 
 ---
 
-### 9. API FastAPI
+### 8. Anomaly types (rule-based)
 
-Estruturei em `app/` (não o `app.py` legado da primeira versão):
+After the model score, I classified with rules: `price_spike`, `volume_spike`, `high_volatility`, `filing_activity`, `revenue_shift`, `negative_margin`, `combined_signal`, etc.
 
-| Área | Endpoints |
+The first chart with **concatenated** types became unreadable soup (`price_spike, volume_spike, filing_activity, ...`). Fix: **explode individual labels** — much clearer.
+
+---
+
+### 9. FastAPI
+
+Structured under `app/` (not the legacy first-version `app.py`):
+
+| Area | Endpoints |
 |------|-----------|
-| Sistema | `/health`, `/` |
-| Empresas | `/companies`, `/companies/{ticker}` |
-| Anomalias | `/anomalies`, `/top`, `/summary`, `/types`, `/{ticker}` |
-| Modelo | `/model/info`, `/model/predict` |
+| System | `/health`, `/` |
+| Companies | `/companies`, `/companies/{ticker}` |
+| Anomalies | `/anomalies`, `/top`, `/summary`, `/types`, `/{ticker}` |
+| Model | `/model/info`, `/model/predict` |
 | Briefings | `/briefings/generate`, `/generate-from-record`, `/sample` |
 
-**Estratégia de dados:** v1 com CSV local para deploy rápido → depois **Neon** com `DATA_SOURCE=auto|database|csv`.
+**Data strategy:** v1 with local CSV for fast deploy → then **Neon** with `DATA_SOURCE=auto|database|csv`.
 
-**Groq** (`llama-3.3-70b-versatile`): recebe o registro da anomalia e devolve briefing executivo — o que aconteceu, por que importa, sinais, monitoramento — **sem recomendação de investimento**.
+**Groq** (`llama-3.3-70b-versatile`): takes the anomaly record and returns an executive briefing — what happened, why it matters, signals, monitoring — **no investment advice**.
 
 ---
 
-### 10. Deploy no Render — o que deu trabalho
+### 10. Render deploy — what was painful
 
-Subiu e respondeu, mas apareceram dois problemas clássicos:
+It came up and responded, but two classic issues showed up:
 
-**Rotas 200/404 alternando** — `/anomalies/summary` às vezes caía em `/{ticker}`. Corrigi ordem das rotas (estáticas antes das dinâmicas), `normalize_ticker`, validação de ticker e cache sem mutação.
+**Flapping 200/404 routes** — `/anomalies/summary` sometimes hit `/{ticker}`. Fixed route order (static before dynamic), `normalize_ticker`, ticker validation, and non-mutating cache.
 
-**RAM > 512 MB** — Pandas carregando CSV largo, `.copy()`, `groupby` e `explode` a cada request no free tier. Não é data leakage; é limite de memória + design inicial.
+**RAM > 512 MB** — Pandas loading wide CSV, `.copy()`, `groupby` and `explode` on every request on the free tier. Not data leakage; memory limit + initial design.
 
-Mitigações que aplicamos:
+Mitigations we applied:
 
-- caches leves no startup (summary, top, types, perfis)  
-- colunas mínimas / SQL no Neon  
-- `/health` e `/model/info` sem carregar joblib  
+- lightweight startup caches (summary, top, types, profiles)  
+- minimal columns / SQL on Neon  
+- `/health` and `/model/info` without loading joblib  
 - `--workers 1`  
-- produção com **`DATA_SOURCE=database`** quando o Neon está populado  
+- production with **`DATA_SOURCE=database`** when Neon is populated  
 
 ---
 
 ### 11. Neon + dashboard
 
-Schema PostgreSQL, SQLAlchemy, Alembic, `scripts/load_csv_to_db.py` — ~27k linhas em `anomaly_results`. A API em produção já lê do banco quando `DATABASE_URL` está configurado.
+PostgreSQL schema, SQLAlchemy, Alembic, `scripts/load_csv_to_db.py` — ~27k rows in `anomaly_results`. Production API reads from the database when `DATABASE_URL` is set.
 
-Frontend em repo separado: **[corporate-signal-intelligence-dashboard](https://github.com/sidnei-almeida/corporate-signal-intelligence-dashboard)** — Next.js, Tailwind, Recharts. Fluxo: escolher empresa → ver anomalias → gerar briefing Groq.
+Frontend in a separate repo: **[corporate-signal-intelligence-dashboard](https://github.com/sidnei-almeida/corporate-signal-intelligence-dashboard)** — Next.js, Tailwind, Recharts. Flow: pick a company → view anomalies → generate Groq briefing.
 
 ---
 
-### O que funcionou vs. o que não
+### What worked vs. what did not
 
-| Funcionou | Não funcionou (ou evitar) |
-|-----------|---------------------------|
-| **Stooq** — histórico profundo | **Alpha Vantage** — quota, 503, premium |
-| **SEC EDGAR** — dados corporativos reais | **`dropna()`** no `model_ready` — mata AMZN |
-| **Pandas nos notebooks** | **Pandas pesado na API** no Render 512MB |
-| **Isolation Forest** — baseline sólido | **Gráfico com `anomaly_type` combinado** — ilegível |
-| **Groq** — briefings úteis | Carregar `model_ready` inteiro na API |
+| Worked | Did not (or avoid) |
+|--------|---------------------|
+| **Stooq** — deep history | **Alpha Vantage** — quota, 503, premium |
+| **SEC EDGAR** — real corporate data | **`dropna()`** on `model_ready` — kills AMZN |
+| **Pandas in notebooks** | **Heavy Pandas in the API** on Render 512MB |
+| **Isolation Forest** — solid baseline | **Chart with combined `anomaly_type`** — unreadable |
+| **Groq** — useful briefings | Loading full `model_ready` in the API |
 | **FastAPI** + OpenAPI | |
-| **Neon** como fonte em produção | |
+| **Neon** as production source | |
 
 ---
 
-### Em uma frase
+### In one sentence
 
-Uma API de inteligência corporativa que cruza mercado (Stooq), filings e fundamentals (SEC), detecta dias atípicos com ML e gera briefings executivos com LLM — com dashboard para consumir isso de forma visual.
+A corporate intelligence API that crosses market data (Stooq), filings and fundamentals (SEC), detects atypical days with ML, and generates executive briefings with an LLM — plus a dashboard to consume it visually.
 
 ---
 
-## Arquitetura (visão técnica)
+## Architecture (technical view)
 
 ```mermaid
 flowchart LR
-  subgraph research [Pesquisa]
+  subgraph research [Research]
     NB[notebooks/]
     CSV[data/*.csv]
   end
-  subgraph store [Persistência]
+  subgraph store [Persistence]
     NEON[(Neon PostgreSQL)]
   end
   subgraph serve [API]
     API[app.main:app]
-    CACHE[Caches no startup]
+    CACHE[Startup caches]
     GROQ[Groq]
   end
   NB --> CSV
@@ -294,35 +294,35 @@ flowchart LR
 
 ---
 
-## Documentação
+## Documentation
 
-| Arquivo | Conteúdo |
-|---------|----------|
-| [README_API.md](README_API.md) | Endpoints, env vars, Render, memória |
-| [README_DATABASE.md](README_DATABASE.md) | Migrations, loader CSV→Neon |
+| File | Contents |
+|------|----------|
+| [README_API.md](README_API.md) | Endpoints, env vars, Render, memory |
+| [README_DATABASE.md](README_DATABASE.md) | Migrations, CSV→Neon loader |
 
 ---
 
-## Notebooks (ordem sugerida)
+## Notebooks (suggested order)
 
-| # | Notebook | Foco |
-|---|----------|------|
+| # | Notebook | Focus |
+|---|----------|--------|
 | 1 | `data_collection.ipynb` | Stooq + SEC |
-| 2 | `data_analysis_cleansing.ipynb` | Limpeza e validação |
+| 2 | `data_analysis_cleansing.ipynb` | Cleansing and validation |
 | 3 | `feature_engineering.ipynb` | Market, filing, financial features |
-| 4 | `modeling_anomaly_detection.ipynb` | Isolation Forest + tipos |
+| 4 | `modeling_anomaly_detection.ipynb` | Isolation Forest + types |
 
-**Artefatos:** `anomaly_detection_results.csv`, `isolation_forest_anomaly_pipeline.joblib`.
+**Artifacts:** `anomaly_detection_results.csv`, `isolation_forest_anomaly_pipeline.joblib`.
 
 ---
 
-## Campos de anomalia (para o front)
+## Anomaly fields (for the frontend)
 
-| Campo | Uso |
-|-------|-----|
-| `is_anomaly` | **Flag principal** na UI |
-| `anomaly_label` | `-1` = anomalia, `1` = normal |
-| `anomaly_score` | Menor = mais anômalo |
+| Field | Usage |
+|-------|--------|
+| `is_anomaly` | **Primary flag** in the UI |
+| `anomaly_label` | `-1` = anomaly, `1` = normal |
+| `anomaly_score` | Lower = more anomalous |
 | `anomaly_type` | Tags (`price_spike`, `filing_activity`, …) |
 
 ---
@@ -337,14 +337,14 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-cp .env.example .env   # nunca commitar o .env
+cp .env.example .env   # never commit .env
 
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Docs:** http://localhost:8000/docs
 
-**Com Neon:**
+**With Neon:**
 
 ```bash
 alembic upgrade head
@@ -353,16 +353,16 @@ python scripts/load_csv_to_db.py --truncate
 
 ---
 
-## Estrutura do repositório
+## Repository structure
 
 ```
 corporate-signal-intelligence/
-├── app/                    # API FastAPI (produção)
+├── app/                    # FastAPI (production)
 ├── alembic/                # Migrations
-├── data/                   # CSVs do pipeline
+├── data/                   # Pipeline CSVs
 ├── models/                 # .joblib
-├── model/                  # feature_schema.json, métricas
-├── notebooks/              # Pesquisa e treino
+├── model/                  # feature_schema.json, metrics
+├── notebooks/              # Research and training
 ├── scripts/                # load_csv_to_db, inspect_model
 ├── images/                 # header.png
 ├── render.yaml
@@ -373,27 +373,27 @@ corporate-signal-intelligence/
 
 ## Deploy (Render)
 
-1. Push no GitHub  
+1. Push to GitHub  
 2. Web Service + `render.yaml`  
 3. Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1`  
 4. Secrets: `GROQ_API_KEY`, `DATABASE_URL`, …  
-5. `DATA_SOURCE=database` com Neon carregado  
+5. `DATA_SOURCE=database` with Neon loaded  
 
 ```bash
 curl -s https://corporate-signal-intelligence.onrender.com/health | jq
 ```
 
-> Free tier dorme quando ocioso; primeira request pode levar ~30–60s.
+> Free tier sleeps when idle; first request may take ~30–60s.
 
 ---
 
 ## Disclaimer
 
-Projeto de **portfólio e estudo**. Scores do modelo e textos do Groq **não são recomendação de investimento** nem interpretação oficial de filings. Sempre validar na fonte primária.
+**Portfolio and learning project.** Model scores and Groq text are **not investment advice** or official filing interpretation. Always validate against primary sources.
 
 ---
 
-## Licença e autor
+## License & author
 
 **[MIT License](LICENSE)**
 
