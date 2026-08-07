@@ -1,16 +1,44 @@
 {
-  "model_file": "isolation_forest_anomaly_pipeline.joblib",
-  "estimator": "Pipeline",
-  "note": "Fill metrics from your training notebook (classification report, ROC-AUC, etc.).",
-  "metrics": {
-    "accuracy": null,
-    "precision_anomaly": null,
-    "recall_anomaly": null,
-    "f1_anomaly": null,
-    "roc_auc": null
+  "primary_score": {
+    "name": "conditional deviation score",
+    "definition": "max(|return_zscore_21d|, |volume_zscore_21d|, |range_zscore_21d|)",
+    "requires_fitting": false,
+    "threshold": 5.462709860697831,
+    "selected_because": "best average rank across 84 issuer-year blocks, best precision at the alert budget overall and on calm-market days, no fitted parameters, and the score is its own explanation",
+    "roc_auc": 0.7417445599777417,
+    "pr_auc": 0.03663399983997077,
+    "precision_at_budget": 0.0761904761904762,
+    "precision_lift_over_base_rate": 8.677477477477478,
+    "precision_at_budget_calm_market": 0.08928571428571429,
+    "precision_lift_calm_market": 10.598591549295776
   },
-  "train_test_split": {
-    "train": null,
-    "test": null
+  "secondary_score": {
+    "name": "structural anomaly score",
+    "model_file": "isolation_forest_anomaly_pipeline.joblib",
+    "estimator": "Pipeline(SimpleImputer, RobustScaler, IsolationForest)",
+    "threshold": 0.5733670094962019,
+    "role": "flags unusual feature combinations for context; not validated as an early-warning signal and does not raise alerts",
+    "roc_auc": 0.7295728862690797,
+    "walk_forward_mean_roc_auc": 0.7707759944510643,
+    "walk_forward_min_roc_auc": 0.6834705376419581
+  },
+  "evaluation": {
+    "criterion": "forward stress: max |abnormal return| over t+1..t+1 above 4.0 times the issuer's trailing 63-day abnormal-return volatility",
+    "test_window": [
+      "2018-01-01",
+      "2026-05-20"
+    ],
+    "base_rate": 0.008780256288561937,
+    "blocks_compared": 84,
+    "friedman_p_value": 9.298578622646637e-07,
+    "best_average_rank_model": "Escore condicional"
+  },
+  "training": {
+    "rows": 63441,
+    "window": [
+      "1994-09-22",
+      "2026-05-20"
+    ],
+    "contamination": 0.01
   }
 }

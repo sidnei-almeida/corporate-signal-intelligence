@@ -164,20 +164,37 @@ class AnomalyResult(Base, TimestampMixin):
     )
     ticker: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+
+    # Primary score: max(|return z|, |volume z|, |range z|) over a trailing 21-session
+    # window. Higher is more deviant, the opposite of the Isolation Forest decision
+    # function this column used to hold.
     anomaly_score: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
     anomaly_label: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_anomaly: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     anomaly_type: Mapped[str | None] = mapped_column(Text, nullable=True)
-    has_missing_financial_data: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-    daily_return: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
-    volume_zscore_30d: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
-    return_zscore_30d: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
-    volatility_30d: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
-    filing_count_30d: Mapped[float | None] = mapped_column(Numeric(16, 4), nullable=True)
-    form_8k_count_30d: Mapped[float | None] = mapped_column(Numeric(16, 4), nullable=True)
-    revenue_growth_qoq: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
-    net_margin: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
-    operating_margin: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
+
+    # Secondary score: Isolation Forest over the full feature set. Kept for context on
+    # unusual feature combinations; it raises no alerts.
+    structural_score: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
+    is_structural_outlier: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    # The three deviations the primary score is built from. The largest is the reason.
+    return_zscore_21d: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
+    volume_zscore_21d: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
+    range_zscore_21d: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
+
+    # Market context for the same session.
+    log_return: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
+    realised_volatility_21d: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
+    market_return: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
+    idiosyncratic_zscore: Mapped[float | None] = mapped_column(Numeric(16, 8), nullable=True)
+
+    # Disclosure context in the two-session reaction window.
+    filed_8k_2d: Mapped[float | None] = mapped_column(Numeric(16, 4), nullable=True)
+    filed_10q_2d: Mapped[float | None] = mapped_column(Numeric(16, 4), nullable=True)
+    filed_10k_2d: Mapped[float | None] = mapped_column(Numeric(16, 4), nullable=True)
+    in_earnings_window: Mapped[float | None] = mapped_column(Numeric(16, 4), nullable=True)
+    days_since_8k: Mapped[float | None] = mapped_column(Numeric(16, 4), nullable=True)
 
     briefings: Mapped[list["AIBriefing"]] = relationship(back_populates="anomaly_result")
 
@@ -207,6 +224,49 @@ class SECFiling(Base, TimestampMixin):
     filing_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     source: Mapped[str | None] = mapped_column(String(64), nullable=True)
     collected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TriageLog(Base, TimestampMixin):
+    """One human review of one alert.
+
+    This is the only table holding data the pipeline cannot produce. It exists to turn
+    two assumptions into measurements: how long a review actually takes, and how often an
+    analyst confirms the day as material.
+
+    That second figure is deliberately *not* the same thing as the model's precision.
+    Precision is measured against the prospective criterion (an abnormal move in the next
+    session); this column records a human judgement about whether the day was worth the
+    attention. The two can legitimately disagree, and keeping them separate is the point.
+    """
+
+    __tablename__ = "triage_log"
+    __table_args__ = (
+        Index("ix_triage_log_ticker_date", "ticker", "date"),
+        Index("ix_triage_log_disposition", "disposition"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    # The alert being reviewed. Not a foreign key: the panel is rebuilt on every pipeline
+    # run, and a review should outlive the row that prompted it.
+    ticker: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+
+    reviewer: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    seconds_spent: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # material | not_material | follow_up
+    disposition: Mapped[str] = mapped_column(String(32), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # The score at the time of review, so a later re-run of the pipeline cannot silently
+    # rewrite what the analyst was actually looking at.
+    anomaly_score_at_review: Mapped[float | None] = mapped_column(
+        Numeric(16, 8), nullable=True
+    )
+    budget_pct_at_review: Mapped[float | None] = mapped_column(
+        Numeric(8, 4), nullable=True
+    )
 
 
 class AIBriefing(Base, TimestampMixin):

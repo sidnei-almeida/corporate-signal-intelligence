@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ import pandas as pd
 from app.core.config import get_settings
 from app.core.data_source import using_database
 from app.repositories import db_repository
+from app.schemas.anomaly_schema import SCORE_SORT_ASCENDING, SERVED_ANOMALY_COLUMNS
 from app.services import memory_cache
 from app.utils.formatting import dataframe_to_records, normalize_date, safe_bool, safe_float
 from app.utils.ticker import normalize_ticker
@@ -24,41 +26,16 @@ MARKET_FEATURES_FILE = "market_features.csv"
 FILING_FEATURES_FILE = "filing_features.csv"
 FINANCIAL_FEATURES_FILE = "financial_features_selected.csv"
 
-# Columns loaded for API paths (avoids wide 60+ column CSV in memory).
-MINIMAL_ANOMALY_COLUMNS = [
-    "ticker",
-    "date",
-    "anomaly_score",
-    "anomaly_label",
-    "is_anomaly",
-    "anomaly_type",
-    "daily_return",
-    "volume_zscore_30d",
-    "return_zscore_30d",
-    "volatility_30d",
-    "filing_count_30d",
-    "form_8k_count_30d",
-    "revenue_growth_qoq",
-    "net_margin",
-    "operating_margin",
-]
+# Columns loaded for API paths (avoids the wide 35-column CSV in memory).
+#
+# The set is chosen to explain an alert rather than to describe a company. The three
+# conditional deviations are the score's own decomposition: whichever is largest is, by
+# construction, the reason the day was flagged. The fundamental block is deliberately
+# absent — the benchmark measured it as not worth its cost, since requiring it drops the
+# panel to 27% of rows and quarterly figures cannot explain why one specific day was odd.
+MINIMAL_ANOMALY_COLUMNS = list(SERVED_ANOMALY_COLUMNS)
 
-TOP_ANOMALY_COLUMNS = [
-    "ticker",
-    "date",
-    "anomaly_score",
-    "anomaly_type",
-    "daily_return",
-    "volume_zscore_30d",
-    "return_zscore_30d",
-    "volatility_30d",
-    "filing_count_30d",
-    "form_8k_count_30d",
-    "revenue_growth_qoq",
-    "net_margin",
-    "operating_margin",
-    "is_anomaly",
-]
+TOP_ANOMALY_COLUMNS = MINIMAL_ANOMALY_COLUMNS
 
 IMPORTANT_COLUMNS = MINIMAL_ANOMALY_COLUMNS  # backwards compatibility
 
@@ -175,16 +152,6 @@ def _build_caches_from_dataframe(df: pd.DataFrame, top_n: int) -> None:
             anomaly_rows = group.iloc[0:0]
 
         scores = group["anomaly_score"] if "anomaly_score" in group.columns else pd.Series(dtype=float)
-        summary = {
-            "ticker": ticker_str,
-            "rows": rows,
-            "anomalies": anomalies,
-            "anomaly_rate": round(anomalies / rows, 4) if rows else 0.0,
-            "min_score": safe_float(scores.min()) if not scores.empty else None,
-            "avg_score": safe_float(scores.mean()) if not scores.empty else None,
-            "max_score": safe_float(scores.max()) if not scores.empty else None,
-        }
-        summaries.append(summary)
 
         if "date" in group.columns:
             ordered = group.sort_values("date")
@@ -194,9 +161,24 @@ def _build_caches_from_dataframe(df: pd.DataFrame, top_n: int) -> None:
             first_date = last_date = None
 
         latest_anomaly = None
+        latest_alert_date = None
         if not anomaly_rows.empty and "date" in anomaly_rows.columns:
             latest = anomaly_rows.sort_values("date").iloc[-1]
             latest_anomaly = dataframe_to_records(latest.to_frame().T)[0]
+            latest_alert_date = normalize_date(latest["date"])
+
+        # min_score is dropped: with a one-sided score the floor is just the calmest day
+        # in the window, which carries no information about the issuer.
+        summary = {
+            "ticker": ticker_str,
+            "rows": rows,
+            "anomalies": anomalies,
+            "anomaly_rate": round(anomalies / rows, 4) if rows else 0.0,
+            "avg_score": safe_float(scores.mean()) if not scores.empty else None,
+            "max_score": safe_float(scores.max()) if not scores.empty else None,
+            "latest_alert_date": latest_alert_date,
+        }
+        summaries.append(summary)
 
         profile = {
             "ticker": ticker_str,
@@ -229,32 +211,42 @@ def _build_caches_from_dataframe(df: pd.DataFrame, top_n: int) -> None:
         if top_usecols:
             top_df = _normalize_anomaly_frame(pd.read_csv(top_path, usecols=top_usecols))
             if "anomaly_score" in top_df.columns:
-                top_df = top_df.sort_values("anomaly_score", ascending=True)
+                top_df = top_df.sort_values("anomaly_score", ascending=SCORE_SORT_ASCENDING)
             top_records = dataframe_to_records(top_df.head(top_n))
 
     if not top_records and "is_anomaly" in df.columns:
         anomaly_only = df.loc[df["is_anomaly"].fillna(False).astype(bool)]
         if "anomaly_score" in anomaly_only.columns:
-            anomaly_only = anomaly_only.sort_values("anomaly_score", ascending=True)
+            anomaly_only = anomaly_only.sort_values(
+                "anomaly_score", ascending=SCORE_SORT_ASCENDING
+            )
         top_records = dataframe_to_records(anomaly_only.head(top_n))
 
+    # Alert types are single labels ("range expansion with disclosure"), not the
+    # comma-joined lists the rule-based pipeline used to emit.
     type_counts: dict[str, int] = {}
     if "anomaly_type" in df.columns and "is_anomaly" in df.columns:
         flagged = df.loc[df["is_anomaly"].fillna(False).astype(bool), "anomaly_type"]
         for value in flagged.dropna():
-            for part in str(value).split(","):
-                label = part.strip()
-                if label:
-                    type_counts[label] = type_counts.get(label, 0) + 1
+            label = str(value).strip()
+            if label and label != "normal":
+                type_counts[label] = type_counts.get(label, 0) + 1
 
+    total_typed = sum(type_counts.values())
     memory_cache.set_cache(
         tickers=tickers,
         companies_list=companies_list,
         anomaly_summary=summaries,
         top_anomalies=top_records,
         anomaly_type_counts=[
-            {"anomaly_type": key, "count": value}
-            for key, value in sorted(type_counts.items())
+            {
+                "anomaly_type": key,
+                "count": value,
+                "share_pct": round(100 * value / total_typed, 1) if total_typed else 0.0,
+            }
+            for key, value in sorted(
+                type_counts.items(), key=lambda item: item[1], reverse=True
+            )
         ],
         company_profiles=profiles,
     )
@@ -380,7 +372,7 @@ def query_anomalies(
     limit: int = 100,
     only_anomalies: bool = True,
     sort_by: str = "anomaly_score",
-    ascending: bool = True,
+    ascending: bool = SCORE_SORT_ASCENDING,
 ) -> list[dict[str, Any]]:
     if using_database():
         return db_repository.query_anomalies(
@@ -405,10 +397,130 @@ def query_anomalies(
     if sort_by in df.columns:
         df = df.sort_values(sort_by, ascending=ascending, na_position="last")
     elif "anomaly_score" in df.columns:
-        df = df.sort_values("anomaly_score", ascending=True, na_position="last")
+        df = df.sort_values(
+            "anomaly_score", ascending=SCORE_SORT_ASCENDING, na_position="last"
+        )
 
     return dataframe_to_records(df.head(limit))
 
 
 def get_anomaly_type_counts() -> list[dict[str, int | str]]:
     return get_anomaly_types_cached()
+
+
+# --- Alert budget ---------------------------------------------------------------
+#
+# The operating model is a fixed share of issuer-days that may raise an alert, not a
+# fixed score cutoff. An analyst has a certain amount of attention; the budget converts
+# it into a threshold. Because the score is self-normalising, that threshold is stable
+# across regimes, which is exactly why the budget is the right control to expose.
+
+MIN_BUDGET_PCT = 0.1
+MAX_BUDGET_PCT = 10.0
+
+
+def _score_quantile(budget_pct: float) -> tuple[float | None, int]:
+    """Return the score cutoff for a budget, plus the number of rows it was taken over."""
+    quantile = 1 - (budget_pct / 100.0)
+    if using_database():
+        return db_repository.score_quantile(quantile)
+
+    df = get_anomaly_results_minimal()
+    if "anomaly_score" not in df.columns:
+        return None, 0
+    scores = df["anomaly_score"].dropna()
+    if scores.empty:
+        return None, 0
+    return float(scores.quantile(quantile)), int(len(scores))
+
+
+def _panel_span_years() -> float | None:
+    """Calendar span the panel covers, used to express a budget as alerts per year."""
+    get_anomaly_summary_cached()  # ensures the cache is built
+    profiles = memory_cache.get_cache().company_profiles.values()
+    bounds = [
+        (profile["first_date"], profile["last_date"])
+        for profile in profiles
+        if profile.get("first_date") and profile.get("last_date")
+    ]
+    if not bounds:
+        return None
+    start = pd.to_datetime(min(first for first, _ in bounds))
+    end = pd.to_datetime(max(last for _, last in bounds))
+    days = (end - start).days
+    return days / 365.25 if days > 0 else None
+
+
+def resolve_budget(budget_pct: float) -> dict[str, Any]:
+    """Translate an alert budget into the threshold and volume it implies."""
+    budget_pct = max(MIN_BUDGET_PCT, min(MAX_BUDGET_PCT, float(budget_pct)))
+    threshold, rows = _score_quantile(budget_pct)
+    alerts = int(round(rows * budget_pct / 100.0))
+    years = _panel_span_years()
+
+    return {
+        "budget_pct": round(budget_pct, 3),
+        "threshold": threshold,
+        "alerts": alerts,
+        "rows": rows,
+        "alerts_per_year": round(alerts / years, 1) if years else None,
+    }
+
+
+# Severity is expressed as the tightest budget a day would still survive. That keeps the
+# tiers on the same footing as the operating control instead of inventing score cutoffs:
+# "critical" means the day would still be flagged if the analyst had a tenth the attention.
+SEVERITY_BUDGETS: tuple[tuple[str, float], ...] = (
+    ("critical", 0.1),
+    ("high", 0.25),
+    ("moderate", 0.5),
+    ("watch", 1.0),
+)
+
+
+@lru_cache(maxsize=1)
+def severity_thresholds() -> tuple[tuple[str, float], ...]:
+    """Score cutoff for each severity tier, tightest first."""
+    tiers = []
+    for label, budget_pct in SEVERITY_BUDGETS:
+        threshold, _ = _score_quantile(budget_pct)
+        if threshold is not None:
+            tiers.append((label, threshold))
+    return tuple(tiers)
+
+
+def severity_tier(score: float | None) -> str | None:
+    """Map a conditional score onto a severity tier."""
+    if score is None:
+        return None
+    for label, threshold in severity_thresholds():
+        if score >= threshold:
+            return label
+    return "below budget"
+
+
+def query_by_budget(
+    budget_pct: float,
+    ticker: str | None = None,
+    limit: int = 100,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Return the alert queue at a given budget, most deviant first."""
+    budget = resolve_budget(budget_pct)
+    threshold = budget["threshold"]
+    if threshold is None:
+        return [], budget
+
+    if using_database():
+        records = db_repository.query_above_threshold(
+            threshold=threshold, ticker=ticker, limit=limit
+        )
+        return records, budget
+
+    df = get_anomaly_results_minimal()
+    if df.empty or "anomaly_score" not in df.columns:
+        return [], budget
+    if ticker:
+        df = df.loc[df["ticker"] == normalize_ticker(ticker)]
+    df = df.loc[df["anomaly_score"] >= threshold]
+    df = df.sort_values("anomaly_score", ascending=SCORE_SORT_ASCENDING, na_position="last")
+    return dataframe_to_records(df.head(limit)), budget

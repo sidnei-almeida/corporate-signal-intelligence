@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 # Path segments used by static anomaly routes — must not be treated as tickers.
-RESERVED_PATH_SEGMENTS = frozenset({"TOP", "SUMMARY", "TYPES"})
+RESERVED_PATH_SEGMENTS = frozenset({"TOP", "SUMMARY", "TYPES", "QUEUE", "BUDGET"})
 
 
 def normalize_ticker(ticker: str) -> str:

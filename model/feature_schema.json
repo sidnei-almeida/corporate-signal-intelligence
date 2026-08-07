@@ -1,209 +1,130 @@
 {
-  "description": "Synced from sklearn feature_names_in_",
   "features": [
     {
-      "name": "open",
-      "type": "float"
-    },
-    {
-      "name": "high",
-      "type": "float"
-    },
-    {
-      "name": "low",
-      "type": "float"
-    },
-    {
-      "name": "close",
-      "type": "float"
-    },
-    {
-      "name": "volume",
-      "type": "float"
-    },
-    {
-      "name": "daily_return",
-      "type": "float"
-    },
-    {
       "name": "log_return",
-      "type": "float"
+      "block": "market"
     },
     {
-      "name": "price_change_7d",
-      "type": "float"
+      "name": "intraday_range",
+      "block": "market"
     },
     {
-      "name": "price_change_30d",
-      "type": "float"
+      "name": "overnight_gap",
+      "block": "market"
     },
     {
-      "name": "price_change_90d",
-      "type": "float"
+      "name": "return_zscore_21d",
+      "block": "market"
     },
     {
-      "name": "volatility_7d",
-      "type": "float"
+      "name": "volume_zscore_21d",
+      "block": "market"
     },
     {
-      "name": "volatility_30d",
-      "type": "float"
+      "name": "volume_zscore_63d",
+      "block": "market"
     },
     {
-      "name": "volatility_90d",
-      "type": "float"
+      "name": "range_zscore_21d",
+      "block": "market"
     },
     {
-      "name": "avg_volume_30d",
-      "type": "float"
+      "name": "realised_volatility_21d",
+      "block": "market"
     },
     {
-      "name": "std_volume_30d",
-      "type": "float"
+      "name": "volatility_ratio",
+      "block": "market"
     },
     {
-      "name": "volume_change_30d",
-      "type": "float"
+      "name": "drawdown_63d",
+      "block": "market"
     },
     {
-      "name": "volume_zscore_30d",
-      "type": "float"
+      "name": "momentum_21d",
+      "block": "market"
     },
     {
-      "name": "avg_return_30d",
-      "type": "float"
+      "name": "momentum_63d",
+      "block": "market"
     },
     {
-      "name": "std_return_30d",
-      "type": "float"
+      "name": "illiquidity_ratio",
+      "block": "market"
     },
     {
-      "name": "return_zscore_30d",
-      "type": "float"
+      "name": "market_return",
+      "block": "market-relative"
     },
     {
-      "name": "daily_range",
-      "type": "float"
+      "name": "rolling_beta_63d",
+      "block": "market-relative"
     },
     {
-      "name": "open_gap",
-      "type": "float"
+      "name": "idiosyncratic_zscore",
+      "block": "market-relative"
     },
     {
-      "name": "filing_count",
-      "type": "float"
+      "name": "market_correlation_63d",
+      "block": "market-relative"
     },
     {
-      "name": "form_10k_count",
-      "type": "float"
+      "name": "filed_8k_2d",
+      "block": "disclosure"
     },
     {
-      "name": "form_10q_count",
-      "type": "float"
+      "name": "filed_10q_2d",
+      "block": "disclosure"
     },
     {
-      "name": "form_8k_count",
-      "type": "float"
+      "name": "filed_10k_2d",
+      "block": "disclosure"
     },
     {
-      "name": "filing_count_30d",
-      "type": "float"
+      "name": "filing_intensity_21d",
+      "block": "disclosure"
     },
     {
-      "name": "filing_count_90d",
-      "type": "float"
+      "name": "filing_intensity_63d",
+      "block": "disclosure"
     },
     {
-      "name": "form_8k_count_30d",
-      "type": "float"
+      "name": "eight_k_63d",
+      "block": "disclosure"
     },
     {
-      "name": "form_10q_count_180d",
-      "type": "float"
+      "name": "days_since_8k",
+      "block": "disclosure"
     },
     {
-      "name": "form_10k_count_365d",
-      "type": "float"
+      "name": "days_since_10q",
+      "block": "disclosure"
     },
     {
-      "name": "days_since_last_filing",
-      "type": "float"
+      "name": "days_since_10k",
+      "block": "disclosure"
     },
     {
-      "name": "days_since_last_8k",
-      "type": "float"
-    },
-    {
-      "name": "assets",
-      "type": "float"
-    },
-    {
-      "name": "cash_and_equivalents",
-      "type": "float"
-    },
-    {
-      "name": "net_income",
-      "type": "float"
-    },
-    {
-      "name": "operating_income",
-      "type": "float"
-    },
-    {
-      "name": "rd_expense",
-      "type": "float"
-    },
-    {
-      "name": "revenue",
-      "type": "float"
-    },
-    {
-      "name": "stockholders_equity",
-      "type": "float"
-    },
-    {
-      "name": "operating_margin",
-      "type": "float"
-    },
-    {
-      "name": "net_margin",
-      "type": "float"
-    },
-    {
-      "name": "cash_to_assets",
-      "type": "float"
-    },
-    {
-      "name": "equity_to_assets",
-      "type": "float"
-    },
-    {
-      "name": "rd_to_revenue",
-      "type": "float"
-    },
-    {
-      "name": "revenue_growth_qoq",
-      "type": "float"
-    },
-    {
-      "name": "revenue_growth_yoy",
-      "type": "float"
-    },
-    {
-      "name": "net_income_growth_qoq",
-      "type": "float"
-    },
-    {
-      "name": "net_income_growth_yoy",
-      "type": "float"
-    },
-    {
-      "name": "assets_growth_qoq",
-      "type": "float"
+      "name": "in_earnings_window",
+      "block": "disclosure"
     }
   ],
-  "label_map": {
-    "0": "normal",
-    "1": "anomaly"
+  "n_features": 27,
+  "primary_score": {
+    "features": [
+      "return_zscore_21d",
+      "volume_zscore_21d",
+      "range_zscore_21d"
+    ],
+    "rule": "maximum absolute value across the listed features",
+    "threshold": 5.462709860697831,
+    "alert_when": "score >= threshold"
+  },
+  "secondary_score": {
+    "model_file": "isolation_forest_anomaly_pipeline.joblib",
+    "imputation": "median, fitted on the full panel",
+    "scaling": "RobustScaler (median and interquartile range)",
+    "score": "negated IsolationForest.score_samples; higher is more unusual",
+    "threshold": 0.5733670094962019
   }
 }

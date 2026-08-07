@@ -1,0 +1,11 @@
+model,alerts,distinct_days,alerts_per_flagged_day,share_on_market_wide_days_pct
+Escore condicional,211,170,1.24,2.8
+Mahalanobis,211,165,1.28,10.0
+Isolation Forest,211,160,1.32,3.3
+LOF,211,159,1.33,11.8
+KNN,211,152,1.39,19.0
+ECOD,211,159,1.33,12.8
+COPOD,211,161,1.31,8.5
+HBOS,211,164,1.29,2.4
+One-Class SVM,211,155,1.36,16.1
+Autoencoder,211,173,1.22,5.7

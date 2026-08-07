@@ -1,0 +1,62 @@
+{
+  "criterion": "forward stress: max |abnormal return| over t+1..t+1 above 4.0 times the issuer's trailing 63-day abnormal-return volatility",
+  "forward_horizon": 1,
+  "stress_multiple": 4.0,
+  "alert_budget": 0.01,
+  "base_rate": 0.008780256288561937,
+  "test_window": [
+    "2018-01-01",
+    "2026-05-20"
+  ],
+  "universe": [
+    "AAPL",
+    "AMD",
+    "AMZN",
+    "GOOGL",
+    "INTC",
+    "META",
+    "MSFT",
+    "NVDA",
+    "ORCL",
+    "TSLA"
+  ],
+  "friedman": {
+    "statistic": 44.98176027793844,
+    "p_value": 9.298578622646637e-07,
+    "blocks": 84,
+    "significant_pairs_after_holm": 7,
+    "total_pairs": 45,
+    "significant_pairs_involving_best": 0,
+    "pairs_involving_best": 9
+  },
+  "walk_forward": {
+    "mean_roc_auc": 0.7707759944510643,
+    "min_roc_auc": 0.6834705376419581,
+    "max_roc_auc": 0.8507468993640264,
+    "years": [
+      2015,
+      2016,
+      2017,
+      2018,
+      2019,
+      2020,
+      2021,
+      2022,
+      2023,
+      2024,
+      2025
+    ],
+    "pooled_precision_at_budget": 0.025362318840579712,
+    "pooled_base_rate": 0.008929862617498192
+  },
+  "calm_market": {
+    "threshold_abs_market_return": 0.021787490768554275,
+    "days": 16856,
+    "base_rate": 0.008424299952539155
+  },
+  "alerts": {
+    "total": 635,
+    "per_year": 20.1,
+    "share_in_disclosure_window_pct": 49.3
+  }
+}

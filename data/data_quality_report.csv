@@ -1,0 +1,7 @@
+dimension,previous pipeline,current pipeline,change_pp,study_window_start,study_window_end
+field completeness,1.0,1.0,0.0,1994-01-01,2026-05-21
+record uniqueness,0.8121291293950934,1.0,18.8,1994-01-01,2026-05-21
+domain validity,1.0,1.0,0.0,1994-01-01,2026-05-21
+calendar consistency,1.0,1.0,0.0,1994-01-01,2026-05-21
+lineage coverage,0.8,1.0,20.0,1994-01-01,2026-05-21
+temporal coverage,0.4215749793850866,1.0,57.8,1994-01-01,2026-05-21

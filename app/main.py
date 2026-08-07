@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import anomalies, briefings, companies, health, model
+from app.api.routes import anomalies, briefings, companies, health, model, validation
 from app.core.config import get_settings
 from app.core.data_source import clear_data_source_cache
 from app.core.logging_config import configure_logging
@@ -67,6 +67,7 @@ def create_app() -> FastAPI:
     application.include_router(anomalies.router)
     application.include_router(briefings.router)
     application.include_router(model.router)
+    application.include_router(validation.router)
 
     @application.get("/", tags=["system"])
     def root() -> dict:

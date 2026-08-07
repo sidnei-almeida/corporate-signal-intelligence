@@ -1,0 +1,37 @@
+feature,block,description,lookback,in_core_set,missing_pct
+log_return,market,Daily log return,1 day,True,0.01
+intraday_range,market,High-low range scaled by close,1 day,True,0.0
+overnight_gap,market,Log change from previous close to open,1 day,True,0.01
+return_zscore_21d,market,Return standardised on the previous 21 sessions,21 days,True,0.16
+volume_zscore_21d,market,Log volume standardised on the previous 21 sessions,21 days,True,0.15
+volume_zscore_63d,market,Log volume standardised on the previous 63 sessions,63 days,True,0.46
+range_zscore_21d,market,Intraday range standardised on the previous 21 sessions,21 days,True,0.15
+realised_volatility_21d,market,Standard deviation of returns,21 days,True,0.15
+volatility_ratio,market,Short-term over long-term realised volatility,21/63 days,True,0.44
+drawdown_63d,market,Distance below the rolling maximum close,63 days,True,0.28
+momentum_21d,market,Cumulative log return,21 days,True,0.31
+momentum_63d,market,Cumulative log return,63 days,True,0.93
+illiquidity_ratio,market,Amihud illiquidity over its own trailing mean,252 days,True,0.9
+market_return,market-relative,Equally weighted return of the other nine issuers,1 day,True,0.01
+rolling_beta_63d,market-relative,Sensitivity to the peer return,63 days,True,0.46
+idiosyncratic_zscore,market-relative,Idiosyncratic return in units of its own volatility,63 days,True,0.9
+market_correlation_63d,market-relative,Correlation with the peer return,63 days,True,0.44
+filed_8k_2d,disclosure,Current reports filed today or the previous session,2 days,True,0.0
+filed_10q_2d,disclosure,Quarterly reports filed today or the previous session,2 days,True,0.0
+filed_10k_2d,disclosure,Annual reports filed today or the previous session,2 days,True,0.0
+filing_intensity_21d,disclosure,Recent filing rate over the issuer's own baseline,21/252 days,True,2.06
+filing_intensity_63d,disclosure,Recent filing rate over the issuer's own baseline,63/252 days,True,2.68
+eight_k_63d,disclosure,Count of current reports,63 days,True,0.0
+days_since_8k,disclosure,Sessions since the last current report,expanding,True,5.44
+days_since_10q,disclosure,Sessions since the last quarterly report,expanding,True,0.76
+days_since_10k,disclosure,Sessions since the last annual report,expanding,True,2.14
+in_earnings_window,disclosure,Within five sessions of a periodic report,5 days,True,0.0
+net_margin,fundamentals,"Net income over revenue, as last reported",point-in-time,False,54.8
+operating_margin,fundamentals,"Operating income over revenue, as last reported",point-in-time,False,54.51
+rd_intensity,fundamentals,"R&D expense over revenue, as last reported",point-in-time,False,57.87
+revenue_growth_yoy,fundamentals,Year-over-year revenue growth,point-in-time,False,61.01
+net_income_growth_yoy,fundamentals,Year-over-year net income growth,point-in-time,False,46.01
+leverage,fundamentals,Liabilities over assets,point-in-time,False,69.93
+cash_to_assets,fundamentals,Cash over assets,point-in-time,False,40.13
+equity_to_assets,fundamentals,Equity over assets,point-in-time,False,40.13
+asset_growth_yoy,fundamentals,Year-over-year asset growth,point-in-time,False,43.84

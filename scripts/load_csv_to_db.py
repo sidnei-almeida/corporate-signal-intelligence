@@ -299,7 +299,7 @@ def load_anomaly_results(session) -> int:
         is_anomaly = clean_bool(row.get("is_anomaly"))
         if is_anomaly is None and "anomaly_label" in row.index:
             label = clean_int(row.get("anomaly_label"))
-            is_anomaly = label == -1 or label == 1 if label is not None else False
+            is_anomaly = label == -1 if label is not None else False
         rows.append(
             {
                 "id": uuid.uuid4(),
@@ -309,16 +309,20 @@ def load_anomaly_results(session) -> int:
                 "anomaly_label": clean_int(row.get("anomaly_label")),
                 "is_anomaly": bool(is_anomaly) if is_anomaly is not None else False,
                 "anomaly_type": clean_str(row.get("anomaly_type")),
-                "has_missing_financial_data": clean_bool(row.get("has_missing_financial_data")),
-                "daily_return": clean_float(row.get("daily_return")),
-                "volume_zscore_30d": clean_float(row.get("volume_zscore_30d")),
-                "return_zscore_30d": clean_float(row.get("return_zscore_30d")),
-                "volatility_30d": clean_float(row.get("volatility_30d")),
-                "filing_count_30d": clean_float(row.get("filing_count_30d")),
-                "form_8k_count_30d": clean_float(row.get("form_8k_count_30d")),
-                "revenue_growth_qoq": clean_float(row.get("revenue_growth_qoq")),
-                "net_margin": clean_float(row.get("net_margin")),
-                "operating_margin": clean_float(row.get("operating_margin")),
+                "structural_score": clean_float(row.get("structural_score")),
+                "is_structural_outlier": clean_bool(row.get("is_structural_outlier")),
+                "return_zscore_21d": clean_float(row.get("return_zscore_21d")),
+                "volume_zscore_21d": clean_float(row.get("volume_zscore_21d")),
+                "range_zscore_21d": clean_float(row.get("range_zscore_21d")),
+                "log_return": clean_float(row.get("log_return")),
+                "realised_volatility_21d": clean_float(row.get("realised_volatility_21d")),
+                "market_return": clean_float(row.get("market_return")),
+                "idiosyncratic_zscore": clean_float(row.get("idiosyncratic_zscore")),
+                "filed_8k_2d": clean_float(row.get("filed_8k_2d")),
+                "filed_10q_2d": clean_float(row.get("filed_10q_2d")),
+                "filed_10k_2d": clean_float(row.get("filed_10k_2d")),
+                "in_earnings_window": clean_float(row.get("in_earnings_window")),
+                "days_since_8k": clean_float(row.get("days_since_8k")),
             }
         )
     count = _bulk_insert(session, AnomalyResult, rows, ["ticker", "date"])

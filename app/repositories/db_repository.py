@@ -11,24 +11,11 @@ from app.core.database import session_scope
 from app.utils.formatting import normalize_date, safe_bool
 from app.utils.ticker import normalize_ticker
 
-_ANOMALY_COLUMNS = [
-    "ticker",
-    "date",
-    "anomaly_score",
-    "anomaly_label",
-    "is_anomaly",
-    "anomaly_type",
-    "has_missing_financial_data",
-    "daily_return",
-    "volume_zscore_30d",
-    "return_zscore_30d",
-    "volatility_30d",
-    "filing_count_30d",
-    "form_8k_count_30d",
-    "revenue_growth_qoq",
-    "net_margin",
-    "operating_margin",
-]
+from app.schemas.anomaly_schema import SCORE_SORT_ASCENDING, SERVED_ANOMALY_COLUMNS
+
+# One definition of the served columns, shared with the CSV path so the two backends
+# cannot drift apart.
+_ANOMALY_COLUMNS = list(SERVED_ANOMALY_COLUMNS)
 
 _SORTABLE_COLUMNS = frozenset(_ANOMALY_COLUMNS)
 
@@ -119,7 +106,7 @@ def query_anomalies(
     limit: int = 100,
     only_anomalies: bool = True,
     sort_by: str = "anomaly_score",
-    ascending: bool = True,
+    ascending: bool = SCORE_SORT_ASCENDING,
 ) -> list[dict[str, Any]]:
     cols = ", ".join(_ANOMALY_COLUMNS)
     order_col = sort_by if sort_by in _SORTABLE_COLUMNS else "anomaly_score"
@@ -137,6 +124,48 @@ def query_anomalies(
         SELECT {cols} FROM anomaly_results
         {where_sql}
         ORDER BY {order_col} {direction} NULLS LAST
+        LIMIT :limit
+        """
+    )
+    with session_scope() as session:
+        rows = session.execute(sql, params).fetchall()
+    return [_row_to_dict(row) for row in rows]
+
+
+def score_quantile(quantile: float) -> tuple[float | None, int]:
+    """Return the conditional-score value at a quantile, and how many rows it spans."""
+    sql = text(
+        """
+        SELECT percentile_cont(:quantile) WITHIN GROUP (ORDER BY anomaly_score),
+               count(anomaly_score)
+        FROM anomaly_results
+        """
+    )
+    with session_scope() as session:
+        row = session.execute(sql, {"quantile": quantile}).first()
+    if row is None or row[0] is None:
+        return None, 0
+    return float(row[0]), int(row[1])
+
+
+def query_above_threshold(
+    threshold: float,
+    ticker: str | None = None,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """Return the alert queue implied by a score cutoff, most deviant first."""
+    cols = ", ".join(_ANOMALY_COLUMNS)
+    direction = "ASC" if SCORE_SORT_ASCENDING else "DESC"
+    clauses = ["WHERE anomaly_score >= :threshold"]
+    params: dict[str, Any] = {"threshold": threshold, "limit": limit}
+    if ticker:
+        clauses.append("AND ticker = :ticker")
+        params["ticker"] = normalize_ticker(ticker)
+    sql = text(
+        f"""
+        SELECT {cols} FROM anomaly_results
+        {" ".join(clauses)}
+        ORDER BY anomaly_score {direction} NULLS LAST
         LIMIT :limit
         """
     )

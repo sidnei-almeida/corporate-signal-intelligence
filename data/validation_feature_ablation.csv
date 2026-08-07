@@ -1,0 +1,4 @@
+feature set,features,alerts,alert_overlap_vs_market_only
+market only,17,122,1.0
+market + disclosure,27,122,0.402
+market + disclosure + fundamentals,36,122,0.333

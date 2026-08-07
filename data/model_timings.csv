@@ -1,0 +1,11 @@
+model,family,seconds
+Escore condicional,baseline,0.0
+Mahalanobis,baseline,1.4
+Isolation Forest,isolation,1.0
+LOF,density,0.6
+KNN,density,0.5
+ECOD,distribution,0.7
+COPOD,distribution,0.4
+HBOS,distribution,1.6
+One-Class SVM,boundary,0.5
+Autoencoder,neural,21.7

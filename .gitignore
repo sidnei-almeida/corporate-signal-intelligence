@@ -112,3 +112,4 @@ tmp/
 .cursor/
 .render/
 .env.example
+.claude/settings.local.json

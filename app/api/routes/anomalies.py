@@ -4,7 +4,13 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Path, Query
 
-from app.schemas.anomaly_schema import AnomalyListResponse, AnomalySummary, AnomalyTypeCount
+from app.schemas.anomaly_schema import (
+    SCORE_SORT_ASCENDING,
+    AlertBudget,
+    AnomalyListResponse,
+    AnomalySummary,
+    AnomalyTypeCount,
+)
 from app.services import anomaly_service, data_service
 from app.utils.ticker import is_plausible_ticker, is_reserved_path_segment, normalize_ticker
 
@@ -22,9 +28,9 @@ def list_anomalies(
     limit: int = Query(default=100, ge=1, le=1000),
     only_anomalies: bool = True,
     sort_by: str = "anomaly_score",
-    ascending: bool = True,
+    ascending: bool = SCORE_SORT_ASCENDING,
 ) -> AnomalyListResponse:
-    """Return filtered anomaly records."""
+    """Return filtered anomaly records, most deviant first."""
     if ticker:
         normalized = normalize_ticker(ticker)
         if not data_service.ticker_exists(normalized):
@@ -41,6 +47,48 @@ def list_anomalies(
         ascending=ascending,
     )
     return AnomalyListResponse(**result)
+
+
+@router.get("/queue", response_model=AnomalyListResponse)
+def alert_queue(
+    budget_pct: float = Query(
+        default=1.0,
+        ge=0.1,
+        le=10.0,
+        description="Share of issuer-days allowed to raise an alert",
+    ),
+    ticker: str | None = None,
+    limit: int = Query(default=100, ge=1, le=1000),
+) -> AnomalyListResponse:
+    """Return the alert queue at a given budget.
+
+    The budget, not a score cutoff, is the operating control: it states how much analyst
+    attention is on offer and the threshold follows from it.
+    """
+    if ticker:
+        normalized = normalize_ticker(ticker)
+        if not data_service.ticker_exists(normalized):
+            raise HTTPException(status_code=404, detail=f"Ticker '{normalized}' not found.")
+        ticker = normalized
+
+    logger.info("alert_queue budget=%s ticker=%s limit=%s", budget_pct, ticker, limit)
+    result = anomaly_service.get_alert_queue(
+        budget_pct=budget_pct, ticker=ticker, limit=limit
+    )
+    return AnomalyListResponse(
+        count=result["count"],
+        budget=AlertBudget(**result["budget"]),
+        records=result["records"],
+    )
+
+
+@router.get("/budget", response_model=AlertBudget)
+def alert_budget(
+    budget_pct: float = Query(default=1.0, ge=0.1, le=10.0),
+) -> AlertBudget:
+    """Return the threshold and alert volume a budget implies, without the rows."""
+    logger.info("alert_budget budget=%s", budget_pct)
+    return AlertBudget(**data_service.resolve_budget(budget_pct))
 
 
 @router.get("/top", response_model=AnomalyListResponse)
@@ -80,7 +128,8 @@ def company_anomalies(
             status_code=404,
             detail=(
                 f"Unknown anomalies resource '{ticker}'. "
-                "Use /anomalies/top, /anomalies/summary, or /anomalies/types."
+                "Use /anomalies/queue, /anomalies/budget, /anomalies/top, "
+                "/anomalies/summary, or /anomalies/types."
             ),
         )
     if not is_plausible_ticker(ticker):

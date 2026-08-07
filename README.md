@@ -30,7 +30,9 @@
 
 ## What this is
 
-I built this project to combine **market data**, **SEC filings**, and **financial fundamentals** in a single pipeline: clean, engineer features, flag atypical days with Isolation Forest, and expose everything through an API — with Groq-powered executive briefings when it makes sense.
+I built this project to combine **market data**, **SEC filings**, and **financial fundamentals** in a single pipeline: clean, engineer features, flag atypical days with a benchmarked and validated anomaly detector, and expose everything through an API — with Groq-powered executive briefings when it makes sense.
+
+The pipeline covers **1994–2026** across ten large-cap US technology issuers: 67,912 trading days and 3,941 SEC filings, with every modelling choice tested rather than assumed.
 
 This is not a trading bot or legal memo generator. The goal is to **prioritize what deserves a second look** before someone opens a 10-K or writes a memo.
 
@@ -303,16 +305,49 @@ flowchart LR
 
 ---
 
-## Notebooks (suggested order)
+## Notebooks (in order)
 
 | # | Notebook | Focus |
 |---|----------|--------|
-| 1 | `data_collection.ipynb` | Stooq + SEC |
-| 2 | `data_analysis_cleansing.ipynb` | Cleansing and validation |
-| 3 | `feature_engineering.ipynb` | Market, filing, financial features |
-| 4 | `modeling_anomaly_detection.ipynb` | Isolation Forest + types |
+| 1 | `data_collection.ipynb` | Stooq + SEC EDGAR (see `scripts/collect_sec_full_history.py` for the lineage-aware collection actually used) |
+| 2 | `data_analysis_cleansing.ipynb` | Cleansing, lineage, six-dimension quality scorecard |
+| 3 | `exploratory_data_analysis.ipynb` | Normality, stationarity, GARCH, regimes, event study |
+| 4 | `feature_engineering.ipynb` | 36 features, look-ahead audit, VIF and PCA |
+| 5 | `modeling_anomaly_detection.ipynb` | Ten detectors across six families, one protocol |
+| 6 | `model_evaluation_validation.ipynb` | Forward-stress label, Friedman/Wilcoxon, walk-forward, SHAP |
 
-**Artifacts:** `anomaly_detection_results.csv`, `isolation_forest_anomaly_pipeline.joblib`.
+Run any of them headlessly with `python scripts/run_notebook.py notebooks/<name>.ipynb`.
+Install the analysis stack with `pip install -r requirements-notebooks.txt` — it is kept
+separate from `requirements.txt` so the API deployment stays small.
+
+**Artifacts:** `anomaly_detection_results.csv`, `feature_dictionary.csv`,
+`data_quality_report.csv`, `isolation_forest_anomaly_pipeline.joblib`,
+`model/training_metrics.json`, and publication-quality figures in `images/figures/`.
+
+---
+
+## What the evaluation found
+
+The detector is measured against a criterion built entirely from data *after* the scoring
+date — the largest abnormal return in the following five sessions, relative to the issuer's
+own trailing volatility. No model could have fitted it.
+
+| | |
+|---|---|
+| Base rate of material days | 4.3% |
+| Precision at a 1% alert budget | 11.4% |
+| **Lift over random inspection** | **2.67×** |
+| Detectors benchmarked | 10, across 6 families |
+| Statistical comparison | Friedman over 84 issuer-year blocks, χ² = 77.3, p = 5.6e-13 |
+
+The uncomfortable finding is the interesting one: **the best detector is the conditional
+baseline** — the largest rolling z-score across return, volume and range. Isolation Forest,
+LOF, KNN, ECOD, COPOD, HBOS, One-Class SVM, Mahalanobis and an autoencoder were all
+benchmarked, and none measurably beats it. The value delivered here is in how the features
+were built, not in the model fitted on top of them. The Isolation Forest still ships as a
+secondary *structural* score, since it answers a different question the label cannot judge.
+
+Full write-up with the numbers and caveats: [docs/tcc_evidence.md](docs/tcc_evidence.md).
 
 ---
 
